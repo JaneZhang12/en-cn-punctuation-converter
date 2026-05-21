@@ -94,7 +94,7 @@
 
 ## 浏览器兼容性
 
-支持所有现代浏览器：Chrome、Firefox、Safari、Edge。移动端浏览器同样可用。
+支持所有现代浏览器：Chrome、Firefox、Safari、Edge。
 
 ## 隐私说明
 
