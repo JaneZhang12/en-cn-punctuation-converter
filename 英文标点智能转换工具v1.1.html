@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英文标点智能转换工具 v1.1</title>
+<script defer src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;background:#f0f2f5;color:#333;line-height:1.6;min-height:100vh}
+.container{max-width:1280px;margin:0 auto;padding:16px 20px}
+header{text-align:center;padding:24px 0 16px}
+header h1{font-size:26px;font-weight:700;color:#1a1a2e;letter-spacing:1px}
+header p{color:#888;font-size:13px;margin-top:6px}
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-bottom:14px}
+
+/* Options */
+.options-panel{padding:16px 20px}
+.options-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.options-header h3{font-size:14px;font-weight:600;color:#555}
+.quick-btns button{background:none;border:1px solid #d9d9d9;border-radius:5px;padding:3px 10px;font-size:12px;color:#666;cursor:pointer;margin-left:6px;transition:all .2s}
+.quick-btns button:hover{border-color:#4a90d9;color:#4a90d9}
+.options-grid{display:flex;flex-wrap:wrap;gap:6px 10px}
+.opt{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;background:#f8f9fa;cursor:pointer;transition:background .15s;user-select:none}
+.opt:hover{background:#e8f0fe}
+.opt input{width:15px;height:15px;accent-color:#4a90d9;cursor:pointer}
+.opt label{font-size:13px;cursor:pointer;white-space:nowrap}
+.opt .eg{color:#aaa;font-size:11px;margin-left:2px}
+
+/* Upload section */
+.upload-section{padding:16px 20px}
+.upload-section .sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.upload-section .sec-head h3{font-size:14px;font-weight:600;color:#555}
+.upload-section .sec-head span{font-size:11px;color:#aaa}
+.drop-zone{border:2px dashed #d9d9d9;border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc}
+.drop-zone:hover,.drop-zone.drag-over{border-color:#4a90d9;background:#f0f7ff}
+.drop-zone .dz-icon{font-size:32px;color:#bbb;margin-bottom:8px;line-height:1}
+.drop-zone .dz-main{font-size:14px;color:#555}
+.drop-zone .dz-main .link{color:#4a90d9;text-decoration:underline;cursor:pointer}
+.drop-zone .dz-sub{font-size:12px;color:#aaa;margin-top:4px}
+.file-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#f8f9fa;border-radius:10px;flex-wrap:wrap}
+.file-row .fname{font-size:13px;color:#333;font-weight:500;word-break:break-all}
+.file-row .fsize{font-size:11px;color:#999;margin-left:6px}
+.file-row .f-actions{display:flex;gap:8px;flex-shrink:0}
+
+/* Divider */
+.divider{display:flex;align-items:center;gap:14px;margin:18px 0;color:#bbb;font-size:12px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#e0e0e0}
+
+/* Main area */
+.main-area{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:768px){.main-area{grid-template-columns:1fr}}
+.panel{display:flex;flex-direction:column;overflow:hidden}
+.panel-head{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#fafbfc;border-bottom:1px solid #eee}
+.panel-head h3{font-size:13px;font-weight:600;color:#555}
+.panel-head .info{font-size:11px;color:#aaa}
+#inputText{width:100%;min-height:380px;padding:14px 16px;border:none;outline:none;resize:vertical;font-size:15px;line-height:1.8;font-family:inherit;color:#333}
+#inputText::placeholder{color:#c0c0c0}
+.output-wrap{min-height:380px;max-height:600px;padding:14px 16px;font-size:15px;line-height:1.8;white-space:pre-wrap;word-wrap:break-word;overflow-y:auto;color:#333;flex:1}
+.output-wrap .ph{color:#c0c0c0}
+.hl{background:#fff3cd;color:#d35400;border-radius:2px;padding:0 1px;font-weight:500}
+
+/* Action bar */
+.action-bar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+.btn{padding:9px 24px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:#4a90d9;color:#fff}
+.btn-primary:hover{background:#3a7bc8;box-shadow:0 3px 10px rgba(74,144,217,.25)}
+.btn-ghost{background:#f0f2f5;color:#555;border:1px solid #d9d9d9}
+.btn-ghost:hover{background:#e8eaed;border-color:#bbb}
+.btn-green{background:#52c41a;color:#fff}
+.btn-green:hover{background:#45a817;box-shadow:0 3px 10px rgba(82,196,26,.25)}
+.btn-purple{background:#722ed1;color:#fff}
+.btn-purple:hover{background:#5f21b8;box-shadow:0 3px 10px rgba(114,46,209,.25)}
+.btn-sm{padding:6px 16px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+
+/* Stats & warning */
+.stats{text-align:center;padding:8px 12px;font-size:12px;color:#666}
+.stats b{color:#d35400;font-weight:700}
+.warn-bar{background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:9px 14px;margin-bottom:14px;font-size:12px;color:#ad6800;line-height:1.6}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#333;color:#fff;padding:9px 22px;border-radius:7px;font-size:13px;transition:transform .3s ease;z-index:1000;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Modal overlay */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:900;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .25s ease}
+.modal-overlay.active{opacity:1;visibility:visible}
+.modal{background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);width:460px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;transform:translateY(20px) scale(.96);transition:transform .25s ease;overflow:hidden}
+.modal-overlay.active .modal{transform:translateY(0) scale(1)}
+.modal-header{padding:18px 22px 14px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px}
+.modal-header .modal-icon{font-size:22px;line-height:1}
+.modal-header h3{font-size:16px;font-weight:700;color:#1a1a2e}
+.modal-body{padding:16px 22px;overflow-y:auto;flex:1}
+.scan-summary{font-size:13px;color:#666;margin-bottom:14px;line-height:1.6}
+.scan-summary b{color:#333}
+.scan-table{width:100%;border-collapse:collapse}
+.scan-table th{text-align:left;font-size:12px;color:#999;font-weight:500;padding:6px 10px;border-bottom:1px solid #eee}
+.scan-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid #f5f5f5}
+.scan-table tr:last-child td{border-bottom:none}
+.scan-table .sym{font-weight:600;color:#d35400;font-size:15px;letter-spacing:1px}
+.scan-table .cnt{font-weight:700;color:#4a90d9;text-align:center}
+.scan-table .arrow{color:#bbb;text-align:center}
+.scan-empty{text-align:center;padding:24px 0;color:#aaa;font-size:13px}
+.modal-footer{padding:14px 22px;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:10px;background:#fafbfc;border-radius:0 0 14px 14px}
+
+/* WPS modal options */
+.wps-option{border:1px solid #e8e8e8;border-radius:10px;padding:16px 18px;margin-bottom:12px;cursor:pointer;transition:all .2s}
+.wps-option:hover{border-color:#4a90d9;background:#f0f7ff;box-shadow:0 2px 8px rgba(74,144,217,.1)}
+.wps-option:last-child{margin-bottom:0}
+.wps-opt-num{font-size:11px;color:#999;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}
+.wps-opt-title{font-size:14px;font-weight:600;color:#333;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.wps-opt-desc{font-size:12px;color:#888;line-height:1.6}
+.wps-tag{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:500}
+.wps-tag-green{background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
+.wps-tag-orange{background:#fff7e6;color:#fa8c16;border:1px solid #ffd591}
+
+footer{text-align:center;padding:16px;color:#bbb;font-size:11px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>英文标点智能转换工具</h1>
+    <p>将英文半角标点智能转换为中文全角标点 · 本地处理 · 保护隐私</p>
+  </header>
+
+  <div class="card options-panel">
+    <div class="options-header">
+      <h3>转换选项</h3>
+      <div class="quick-btns">
+        <button onclick="toggleAll(true)">全选</button>
+        <button onclick="toggleAll(false)">全不选</button>
+      </div>
+    </div>
+    <div class="options-grid" id="optGrid"></div>
+  </div>
+
+  <!-- File Upload -->
+  <div class="card upload-section">
+    <div class="sec-head">
+      <h3>文件直传转换</h3>
+      <span>上传 → 自动转换标点 → 下载同格式文件（保留所有原文件格式）</span>
+    </div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" accept=".txt,.docx,.wps" style="display:none">
+      <div class="dz-icon">&#128196;</div>
+      <p class="dz-main">拖拽文件到此处，或<span class="link">点击选择文件</span></p>
+      <p class="dz-sub">支持 .txt、.docx 格式</p>
+    </div>
+    <div class="file-row" id="fileRow" style="display:none">
+      <div><span class="fname" id="fnameDisplay"></span><span class="fsize" id="fsizeDisplay"></span></div>
+      <div class="f-actions">
+        <button class="btn btn-primary btn-sm" id="processBtn" onclick="processUploadedFile()">转换并下载</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearFile()">移除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"><span>或 手动输入文本</span></div>
+
+  <!-- Text Input / Output -->
+  <div class="main-area">
+    <div class="card panel">
+      <div class="panel-head">
+        <h3>输入文本</h3>
+        <span class="info" id="inInfo">0 字符</span>
+      </div>
+      <textarea id="inputText" placeholder="在此粘贴或输入需要转换的文本……"></textarea>
+    </div>
+    <div class="card panel">
+      <div class="panel-head">
+        <h3>转换结果</h3>
+        <span class="info" id="outInfo">0 字符</span>
+      </div>
+      <div class="output-wrap" id="outputBox"><span class="ph">转换结果将显示在此处，变更字符会高亮标注</span></div>
+    </div>
+  </div>
+
+  <div id="warnBar" class="warn-bar" style="display:none"></div>
+
+  <div class="action-bar">
+    <button class="btn btn-primary" onclick="doConvert()">转换</button>
+    <button class="btn btn-ghost" onclick="doClear()">清空</button>
+    <button class="btn btn-green" id="copyBtn" onclick="doCopy()" disabled>复制结果</button>
+    <button class="btn btn-purple" id="exportBtn" onclick="doExport()" disabled>导出 .docx</button>
+  </div>
+
+  <div class="card stats" id="statsBar" style="display:none"></div>
+
+  <footer>中文标点智能转换工具 v1.1</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Scan Result Modal -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-icon">&#128270;</span>
+      <h3>文件扫描结果</h3>
+    </div>
+    <div class="modal-body" id="scanModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeScanModal()">取消</button>
+      <button class="btn btn-primary" id="modalConvertBtn" onclick="confirmFileConvert()">开始转换</button>
+    </div>
+  </div>
+</div>
+
+<!-- WPS Format Modal -->
+<div class="modal-overlay" id="wpsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-icon">&#9888;&#65039;</span>
+      <h3>检测到 .wps 格式文件</h3>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#666;line-height:1.8;margin-bottom:18px">
+        <b>.wps</b> 是 WPS Office 的私有格式，网页端无法在保留排版的情况下直接处理此格式。请选择以下方式之一：
+      </p>
+      <div class="wps-option" onclick="closeWpsModal()">
+        <div class="wps-opt-num">方案一</div>
+        <div class="wps-opt-title">另存为 .docx 后重新上传<span class="wps-tag wps-tag-green">推荐</span></div>
+        <div class="wps-opt-desc">在 WPS Office 中将文件另存为 .docx 格式，即可完整保留原文排版并转换标点。</div>
+      </div>
+      <div class="wps-option" onclick="wpsGoManual()">
+        <div class="wps-opt-num">方案二</div>
+        <div class="wps-opt-title">手动复制粘贴文本</div>
+        <div class="wps-opt-desc">在 WPS 中复制文档内容，粘贴到下方「手动输入文本」区域进行转换。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== Options Config ======
+const OPTIONS = [
+  {id:'dq', label:'双引号', eg:'" → ""', on:true},
+  {id:'sq', label:'单引号', eg:"' → ''", on:true},
+  {id:'comma', label:'逗号', eg:', → ，', on:false},
+  {id:'period', label:'句号', eg:'. → 。', on:false},
+  {id:'colon', label:'冒号', eg:': → ：', on:false},
+  {id:'semicolon', label:'分号', eg:'; → ；', on:false},
+  {id:'exclaim', label:'感叹号', eg:'! → ！', on:false},
+  {id:'question', label:'问号', eg:'? → ？', on:false},
+  {id:'paren', label:'括号', eg:'() → （）', on:false},
+  {id:'dash', label:'破折号', eg:'-- → ——', on:false},
+];
+
+const grid = document.getElementById('optGrid');
+OPTIONS.forEach(o => {
+  const d = document.createElement('div');
+  d.className = 'opt';
+  d.innerHTML = '<input type="checkbox" id="opt_'+o.id+'" '+(o.on?'checked':'')+'><label for="opt_'+o.id+'">'+o.label+'</label><span class="eg">'+o.eg+'</span>';
+  d.addEventListener('click', e => { if(e.target.tagName!=='INPUT') document.getElementById('opt_'+o.id).click(); });
+  grid.appendChild(d);
+});
+
+function toggleAll(v) {
+  OPTIONS.forEach(o => document.getElementById('opt_'+o.id).checked = v);
+}
+
+function getOpts() {
+  const r = {};
+  OPTIONS.forEach(o => r[o.id] = document.getElementById('opt_'+o.id).checked);
+  return r;
+}
+
+// ====== Character count ======
+const inputEl = document.getElementById('inputText');
+const inInfo = document.getElementById('inInfo');
+inputEl.addEventListener('input', () => { inInfo.textContent = inputEl.value.length + ' 字符'; });
+
+// ====== Toast ======
+function showToast(msg, ms) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), ms || 2000);
+}
+
+// ====== Conversion Engine ======
+let convertedPlain = '';
+
+function isDigit(c) { return c >= '0' && c <= '9'; }
+function isAsciiLetter(c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+function isAlphaNum(c) { return isDigit(c) || isAsciiLetter(c); }
+
+function inEnglishCtx(chars, i) {
+  const p = i > 0 ? chars[i-1] : '';
+  const n = i < chars.length-1 ? chars[i+1] : '';
+  if (isDigit(p) && isDigit(n)) return true;
+  if (isAsciiLetter(p) && (isAsciiLetter(n) || n === ' ')) return true;
+  if ((isAsciiLetter(p) || p === ' ') && isAsciiLetter(n)) return true;
+  return false;
+}
+
+function isStrongOpen(prev) {
+  if (!prev) return true;
+  return /[\s\n\r\t：:（(【「『《〈\[{，,]/.test(prev);
+}
+
+function convert(text, opts) {
+  const chars = Array.from(text);
+  const out = [];
+  const changed = new Set();
+  let dqOpen = false, sqOpen = false;
+  let warnings = [];
+  let dqTotal = 0, sqTotal = 0;
+
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    const prev = i > 0 ? chars[i-1] : '';
+    const next = i < chars.length-1 ? chars[i+1] : '';
+
+    if ('“”‘’'.includes(ch)) { out.push(ch); continue; }
+
+    // Dash conversion: -- → ——
+    if (ch === '-' && next === '-' && opts.dash) {
+      // Check it's exactly two hyphens, not part of --- or longer
+      const next2 = i + 2 < chars.length ? chars[i+2] : '';
+      const prev1 = i > 0 ? chars[i-1] : '';
+      if (prev1 !== '-' && next2 !== '-') {
+        out.push('—'); changed.add(out.length-1);
+        out.push('—'); changed.add(out.length-1);
+        i++; // skip the second hyphen
+        continue;
+      }
+    }
+
+    if (ch === '"' && opts.dq) {
+      dqTotal++;
+      if (!dqOpen) {
+        out.push('“'); dqOpen = true;
+      } else {
+        if (isStrongOpen(prev) && dqTotal > 1) {
+          warnings.push('检测到可能未闭合的双引号（位置附近第 ' + (i+1) + ' 个字符）');
+          out.push('“');
+        } else {
+          out.push('”'); dqOpen = false;
+        }
+      }
+      changed.add(out.length - 1); continue;
+    }
+
+    if (ch === "'" && opts.sq) {
+      if (isAsciiLetter(prev) && isAsciiLetter(next)) { out.push(ch); continue; }
+      sqTotal++;
+      if (!sqOpen) {
+        out.push('‘'); sqOpen = true;
+      } else {
+        if (isStrongOpen(prev) && sqTotal > 1) {
+          warnings.push('检测到可能未闭合的单引号（位置附近第 ' + (i+1) + ' 个字符）');
+          out.push('‘');
+        } else {
+          out.push('’'); sqOpen = false;
+        }
+      }
+      changed.add(out.length - 1); continue;
+    }
+
+    if (ch === ',' && opts.comma && !inEnglishCtx(chars, i)) {
+      out.push('，'); changed.add(out.length-1); continue;
+    }
+    if (ch === '.' && opts.period) {
+      if (isDigit(prev) || isDigit(next)) { out.push(ch); continue; }
+      if (isAsciiLetter(prev) && isAsciiLetter(next)) { out.push(ch); continue; }
+      if (next === '.' || prev === '.') { out.push(ch); continue; }
+      out.push('。'); changed.add(out.length-1); continue;
+    }
+    if (ch === ':' && opts.colon && !inEnglishCtx(chars, i)) {
+      if (isDigit(prev) && isDigit(next)) { out.push(ch); continue; }
+      out.push('：'); changed.add(out.length-1); continue;
+    }
+    if (ch === ';' && opts.semicolon && !inEnglishCtx(chars, i)) {
+      out.push('；'); changed.add(out.length-1); continue;
+    }
+    if (ch === '!' && opts.exclaim && !inEnglishCtx(chars, i)) {
+      out.push('！'); changed.add(out.length-1); continue;
+    }
+    if (ch === '?' && opts.question && !inEnglishCtx(chars, i)) {
+      out.push('？'); changed.add(out.length-1); continue;
+    }
+    if (ch === '(' && opts.paren && !isAlphaNum(prev)) {
+      out.push('（'); changed.add(out.length-1); continue;
+    }
+    if (ch === ')' && opts.paren && !isAlphaNum(next)) {
+      out.push('）'); changed.add(out.length-1); continue;
+    }
+
+    out.push(ch);
+  }
+
+  if (dqOpen) warnings.push('存在未闭合的双引号，最后一个已按后引号处理');
+  if (sqOpen) warnings.push('存在未闭合的单引号，最后一个已按后引号处理');
+
+  if (dqOpen) {
+    for (let j = out.length - 1; j >= 0; j--) {
+      if (out[j] === '“') { out[j] = '”'; break; }
+    }
+  }
+  if (sqOpen) {
+    for (let j = out.length - 1; j >= 0; j--) {
+      if (out[j] === '‘') { out[j] = '’'; break; }
+    }
+  }
+
+  return { text: out.join(''), changed, warnings, count: changed.size };
+}
+
+// ====== Scan (count symbols without converting) ======
+function scanText(text, opts) {
+  const chars = Array.from(text);
+  const counts = {};
+
+  const labelMap = {
+    dq: {label:'双引号', from:'"', to:'“”'},
+    sq: {label:'单引号', from:"'", to:'‘’'},
+    comma: {label:'逗号', from:',', to:'，'},
+    period: {label:'句号', from:'.', to:'。'},
+    colon: {label:'冒号', from:':', to:'：'},
+    semicolon: {label:'分号', from:';', to:'；'},
+    exclaim: {label:'感叹号', from:'!', to:'！'},
+    question: {label:'问号', from:'?', to:'？'},
+    paren: {label:'括号', from:'()', to:'（）'},
+    dash: {label:'破折号', from:'--', to:'——'},
+  };
+
+  const result = convert(text, opts);
+
+  const original = Array.from(text);
+  const converted = Array.from(result.text);
+
+  // Count by type via a second pass
+  Object.keys(opts).forEach(k => {
+    if (opts[k]) counts[k] = 0;
+  });
+
+  // Re-run with only one option at a time to get per-type counts
+  Object.keys(opts).forEach(k => {
+    if (!opts[k]) return;
+    const singleOpt = {};
+    OPTIONS.forEach(o => singleOpt[o.id] = false);
+    singleOpt[k] = true;
+    const r = convert(text, singleOpt);
+    if (k === 'dash') {
+      counts[k] = r.count / 2; // each -- → —— produces 2 changed chars
+    } else {
+      counts[k] = r.count;
+    }
+  });
+
+  const items = [];
+  Object.keys(counts).forEach(k => {
+    if (counts[k] > 0) {
+      items.push({
+        label: labelMap[k].label,
+        from: labelMap[k].from,
+        to: labelMap[k].to,
+        count: counts[k]
+      });
+    }
+  });
+
+  return { items, totalCount: result.count };
+}
+
+// ====== Highlight Render ======
+function escHtml(c) {
+  if (c === '&') return '&amp;';
+  if (c === '<') return '&lt;';
+  if (c === '>') return '&gt;';
+  return c;
+}
+
+function renderHighlight(text, changed) {
+  const chars = Array.from(text);
+  let html = '';
+  for (let i = 0; i < chars.length; i++) {
+    const c = escHtml(chars[i]);
+    html += changed.has(i) ? '<span class="hl">' + c + '</span>' : c;
+  }
+  return html;
+}
+
+// ====== Download Helper ======
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ====== Text Actions ======
+function doConvert() {
+  const text = inputEl.value;
+  if (!text.trim()) { showToast('请先输入文本'); return; }
+  const opts = getOpts();
+  if (!Object.values(opts).some(v=>v)) { showToast('请至少选择一个转换选项'); return; }
+
+  const result = convert(text, opts);
+  convertedPlain = result.text;
+
+  document.getElementById('outputBox').innerHTML = renderHighlight(result.text, result.changed);
+  document.getElementById('outInfo').textContent = Array.from(result.text).length + ' 字符';
+
+  const warn = document.getElementById('warnBar');
+  if (result.warnings.length) { warn.innerHTML = result.warnings.join('<br>'); warn.style.display = 'block'; }
+  else { warn.style.display = 'none'; }
+
+  const stats = document.getElementById('statsBar');
+  stats.innerHTML = result.count > 0 ? '共转换 <b>' + result.count + '</b> 处标点' : '未检测到需要转换的标点';
+  stats.style.display = 'block';
+
+  document.getElementById('copyBtn').disabled = false;
+  document.getElementById('exportBtn').disabled = false;
+}
+
+function doClear() {
+  inputEl.value = '';
+  inInfo.textContent = '0 字符';
+  document.getElementById('outputBox').innerHTML = '<span class="ph">转换结果将显示在此处，变更字符会高亮标注</span>';
+  document.getElementById('outInfo').textContent = '0 字符';
+  document.getElementById('warnBar').style.display = 'none';
+  document.getElementById('statsBar').style.display = 'none';
+  document.getElementById('copyBtn').disabled = true;
+  document.getElementById('exportBtn').disabled = true;
+  convertedPlain = '';
+}
+
+async function doCopy() {
+  if (!convertedPlain) return;
+  try {
+    await navigator.clipboard.writeText(convertedPlain);
+    showToast('已复制到剪贴板');
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = convertedPlain;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('已复制到剪贴板');
+  }
+}
+
+function exportViaHtml() {
+  const escaped = convertedPlain.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const body = escaped.split('\n').map(l => '<p style="font-family:宋体;font-size:12pt;line-height:1.8">' + (l || '&nbsp;') + '</p>').join('');
+  const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>p{margin:0 0 6pt 0}</style></head><body>' + body + '</body></html>';
+  downloadBlob(new Blob(['﻿' + html], {type:'application/msword'}), '转换结果.doc');
+  showToast('已生成 .doc 文件');
+}
+
+async function doExport() {
+  if (!convertedPlain) return;
+  if (typeof window.docx === 'undefined') { exportViaHtml(); return; }
+  try {
+    const { Document, Packer, Paragraph, TextRun } = window.docx;
+    const children = convertedPlain.split('\n').map(line =>
+      new Paragraph({ spacing:{line:360}, children:[new TextRun({text:line||' ',font:'宋体',size:24})] })
+    );
+    const doc = new Document({ sections:[{properties:{},children}] });
+    downloadBlob(await Packer.toBlob(doc), '转换结果.docx');
+    showToast('已生成 .docx 文件');
+  } catch(e) { exportViaHtml(); }
+}
+
+// ====== Scan Modal ======
+let pendingFileConvert = null;
+
+function showScanModal(items, totalCount) {
+  const body = document.getElementById('scanModalBody');
+  const btn = document.getElementById('modalConvertBtn');
+
+  if (items.length === 0) {
+    body.innerHTML = '<div class="scan-empty">未检测到需要转换的标点符号</div>';
+    btn.disabled = true;
+  } else {
+    let html = '<div class="scan-summary">共检测到 <b>' + totalCount + '</b> 处可转换标点符号：</div>';
+    html += '<table class="scan-table"><thead><tr><th>符号类型</th><th style="text-align:center">原符号</th><th style="text-align:center"></th><th style="text-align:center">转换为</th><th style="text-align:center">数量</th></tr></thead><tbody>';
+    items.forEach(item => {
+      html += '<tr><td>' + item.label + '</td><td class="sym" style="text-align:center">' + escHtml(item.from) + '</td><td class="arrow">→</td><td class="sym" style="text-align:center">' + item.to + '</td><td class="cnt">' + item.count + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    body.innerHTML = html;
+    btn.disabled = false;
+  }
+
+  document.getElementById('scanModal').classList.add('active');
+}
+
+function closeScanModal() {
+  document.getElementById('scanModal').classList.remove('active');
+  pendingFileConvert = null;
+}
+
+document.getElementById('scanModal').addEventListener('click', function(e) {
+  if (e.target === this) closeScanModal();
+});
+
+function confirmFileConvert() {
+  const fn = pendingFileConvert;
+  closeScanModal();
+  if (fn) fn();
+}
+
+// ====== WPS Modal ======
+function showWpsModal() {
+  document.getElementById('wpsModal').classList.add('active');
+}
+
+function closeWpsModal() {
+  document.getElementById('wpsModal').classList.remove('active');
+}
+
+document.getElementById('wpsModal').addEventListener('click', function(e) {
+  if (e.target === this) closeWpsModal();
+});
+
+function wpsGoManual() {
+  closeWpsModal();
+  clearFile();
+  document.getElementById("inputText").scrollIntoView({ behavior: "smooth", block: "center" });
+  setTimeout(() => document.getElementById("inputText").focus(), 400);
+  showToast("请从 WPS 中复制文本，粘贴到下方输入框", 3000);
+}
+
+
+// ====== File Upload ======
+let uploadedFile = null;
+let uploadedFileText = '';
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+async function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'txt' && ext !== 'docx' && ext !== 'wps') {
+    showToast('不支持的格式，请上传 .txt、.docx 或 .wps 文件');
+    return;
+  }
+  uploadedFile = file;
+  document.getElementById('fnameDisplay').textContent = file.name;
+  document.getElementById('fsizeDisplay').textContent = '(' + fmtSize(file.size) + ')';
+  document.getElementById('fileRow').style.display = 'flex';
+  dropZone.style.display = 'none';
+
+  if (ext === 'wps') {
+    showWpsModal();
+    return;
+  }
+
+  await scanAndShowModal(file, ext);
+}
+
+async function scanAndShowModal(file, ext) {
+  const opts = getOpts();
+  if (!Object.values(opts).some(v=>v)) {
+    showToast('请至少选择一个转换选项以进行扫描');
+    return;
+  }
+
+  try {
+    let text = '';
+    if (ext === 'txt') {
+      text = await file.text();
+    } else {
+      text = await extractDocxText(file);
+    }
+    uploadedFileText = text;
+    const scanResult = scanText(text, opts);
+    showScanModal(scanResult.items, scanResult.totalCount);
+    pendingFileConvert = () => processUploadedFile();
+  } catch(e) {
+    showToast('文件读取失败：' + e.message, 3000);
+  }
+}
+
+async function extractDocxText(file) {
+  if (typeof JSZip === 'undefined') {
+    await new Promise(resolve => {
+      const check = setInterval(() => {
+        if (typeof JSZip !== 'undefined') { clearInterval(check); resolve(); }
+      }, 200);
+      setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+    });
+  }
+  if (typeof JSZip === 'undefined') throw new Error('JSZip 库未加载');
+
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const parts = [];
+  const targetPaths = Object.keys(zip.files).filter(name => {
+    if (!name.startsWith('word/') || !name.endsWith('.xml')) return false;
+    const base = name.substring(5);
+    return base === 'document.xml' || base.startsWith('header') || base.startsWith('footer') ||
+           base === 'footnotes.xml' || base === 'endnotes.xml' || base === 'comments.xml';
+  });
+
+  for (const path of targetPaths) {
+    const xmlStr = await zip.file(path).async('string');
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlStr, 'application/xml');
+    const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const tNodes = doc.getElementsByTagNameNS(ns, 't');
+    for (let i = 0; i < tNodes.length; i++) {
+      parts.push(tNodes[i].textContent);
+    }
+  }
+  return parts.join('');
+}
+
+function clearFile() {
+  uploadedFile = null;
+  uploadedFileText = '';
+  fileInput.value = '';
+  document.getElementById('fileRow').style.display = 'none';
+  dropZone.style.display = '';
+}
+
+async function processUploadedFile() {
+  if (!uploadedFile) return;
+  const opts = getOpts();
+  if (!Object.values(opts).some(v=>v)) { showToast('请至少选择一个转换选项'); return; }
+
+  const btn = document.getElementById('processBtn');
+  btn.disabled = true; btn.textContent = '转换中…';
+
+  try {
+    const ext = uploadedFile.name.split('.').pop().toLowerCase();
+    if (ext === 'txt') await processTxt(uploadedFile, opts);
+    else await processDocx(uploadedFile, opts);
+  } catch(e) {
+    showToast('处理失败：' + e.message, 3000);
+  } finally {
+    btn.disabled = false; btn.textContent = '转换并下载';
+  }
+}
+
+async function processTxt(file, opts) {
+  const text = await file.text();
+  const result = convert(text, opts);
+  downloadBlob(
+    new Blob(['﻿' + result.text], {type:'text/plain;charset=utf-8'}),
+    file.name.replace(/\.txt$/i, '_已转换.txt')
+  );
+  showToast('已转换 ' + result.count + ' 处标点，文件已下载');
+}
+
+async function processDocx(file, opts) {
+  if (typeof JSZip === 'undefined') {
+    showToast('JSZip 库加载中，请稍后重试', 3000);
+    return;
+  }
+
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  let totalChanges = 0;
+
+  const targetPaths = Object.keys(zip.files).filter(name => {
+    if (!name.startsWith('word/') || !name.endsWith('.xml')) return false;
+    const base = name.substring(5);
+    return base === 'document.xml' ||
+           base.startsWith('header') ||
+           base.startsWith('footer') ||
+           base === 'footnotes.xml' ||
+           base === 'endnotes.xml' ||
+           base === 'comments.xml';
+  });
+
+  for (const path of targetPaths) {
+    const xmlStr = await zip.file(path).async('string');
+    const { xml, changes } = convertDocxXml(xmlStr, opts);
+    if (changes > 0) zip.file(path, xml);
+    totalChanges += changes;
+  }
+
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 }
+  });
+
+  downloadBlob(blob, file.name.replace(/\.docx$/i, '_已转换.docx'));
+  showToast('已转换 ' + totalChanges + ' 处标点，文件已下载');
+}
+
+function convertDocxXml(xmlStr, opts) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'application/xml');
+  const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const tNodes = doc.getElementsByTagNameNS(ns, 't');
+
+  if (tNodes.length === 0) return { xml: xmlStr, changes: 0 };
+
+  const texts = [];
+  const lens = [];
+  for (let i = 0; i < tNodes.length; i++) {
+    const t = tNodes[i].textContent;
+    texts.push(t);
+    lens.push(Array.from(t).length);
+  }
+
+  const joined = texts.join('');
+  const result = convert(joined, opts);
+  const resultChars = Array.from(result.text);
+
+  let pos = 0;
+  for (let i = 0; i < tNodes.length; i++) {
+    tNodes[i].textContent = resultChars.slice(pos, pos + lens[i]).join('');
+    pos += lens[i];
+  }
+
+  return { xml: new XMLSerializer().serializeToString(doc), changes: result.count };
+}
+</script>
+</body>
+</html>
