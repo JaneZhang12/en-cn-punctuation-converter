@@ -99,3 +99,13 @@
 ## 隐私说明
 
 所有文本处理均在浏览器本地完成，不会将任何数据上传到服务器。
+
+## 更新
+26-6-10 v1.2
+ Unicode 中，英文弯引号和中文弯引号是同一个字符（U+201C/U+201D）。它们在视觉上的区别完全取决于字体：
+  - 用 Times New Roman 渲染 → 看起来是英文式的 " "（上下不对称的小弯钩）
+  - 用 宋体 渲染 → 看起来是中文式的 " "（全角、上下位置不同）
+当文档 Normal 样式中 w:hAnsi 设置为 Times New Roman，而 U+201C/U+201D 属于 High ANSI 字符范围，所以 Word 用 Times New Roman 渲染时，视觉上就成了「英文引号」，但工具无法识别。
+修复：
+在 DOCX 的 XML 结构中，为包含弯引号的 <w:r> run 添加 <w:rFonts w:hint="eastAsia"/>，指示 Word 使用东亚字体（如宋体）而非 hAnsi 字体（如 Times New Roman）渲染这些引号字符。
+
